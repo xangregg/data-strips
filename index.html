@@ -1,224 +1,241 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Data Strips</title>
+    <meta charset="UTF-8"/>
+    <title>Data Strips</title>
+    <style>
+        #controls {
+            display: grid;
+            grid-template-columns: 130px 120px 240px 240px 240px;
+            gap: 1rem 1.5rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        #controls label {
+            font-size: 17px;
+            font-weight: bold;
+            font-family: sans-serif;
+        }
+
+        #controls select,
+        #controls input[type="range"] {
+            width: 100%;
+        }
+
+        .row-label {
+            font-size: 18px;
+            font-family: sans-serif;
+        }
+
+        .full-span {
+            grid-column: 2 / 4;
+        }
+
+        .input-slider {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .input-slider input[type="number"] {
+            width: 60px;
+            flex-shrink: 0;
+        }
+
+        .input-slider input[type="range"] {
+            flex: 1;
+            min-width: 0; /* allows shrinking if needed */
+        }
+
+        .span-2-4 {
+            grid-column: 2 / 4;
+        }
+
+        .span-2-4 input[type="number"] {
+            width: 110px;
+            flex-shrink: 0;
+        }
+
+        .span-4-6 {
+            grid-column: 4 / 6;
+        }
+
+        .span-5-6 {
+            grid-column: 5 / 6;
+        }
+
+        .span-descr {
+            grid-column: 1 / 4;
+        }
+
+        .label-cell {
+            grid-column: 1;
+            text-align: right;
+            align-self: center;
+        }
+
+        .segment-cell {
+            grid-column: 4 / span 2;
+            display: flex;
+        }
+
+        .segment-button {
+            padding: 0.25rem 0rem;
+            border: 1px solid #d0d0d0;
+            margin: 0.1rem -1px 0 0;
+            background: #fff;
+            /*  border-radius: 0.25rem; */
+            width: 8rem;
+            text-align: center;
+            cursor: pointer;
+            font-size: 17px;
+        }
+
+        .segment-button.active {
+            background: #e3e3e3;
+            color: #333;
+            /*  font-weight: bold;*/
+        }
+
+        .segment-button.active:hover {
+            background: #e0e0e0;
+        }
+
+        .segment-button:hover {
+            background: #fafafa;
+        }
+
+        .segmented-control__label {
+            display: block;
+            margin: 0.1em -1px 0 0;
+            padding: 0.05em 1em;
+            border: 1px solid #d2d2d2;
+            font-size: 0.85em;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .segment-button--start {
+            margin-left: 0.5em;
+            border-bottom-left-radius: 5px;
+            border-bottom-right-radius: 0;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 0;
+        }
+
+        .segment-button--end {
+            margin-right: 0.5em;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 5px;
+            border-top-left-radius: 0;
+            border-top-right-radius: 5px;
+        }
+
+        #description {
+            margin-top: 20px;
+            margin-left: 20px;
+            margin-right: 50px;
+            font-size: 16px;
+            font-family: sans-serif;
+        }
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.0.0/dist/d3.min.js"></script>
+    <script type="module" src="./main.js"></script>
+
 </head>
+
 <body>
-<style>
-  #controls {
-    display: grid;
-    grid-template-columns: 130px 120px 240px 240px 240px;
-    gap: 1rem 1.5rem;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-
-  #controls label {
-    font-size: 17px;
-    font-weight: bold;
-    font-family: sans-serif;
-  }
-
-  #controls select,
-  #controls input[type="range"] {
-    width: 100%;
-  }
-
-  .row-label {
-    font-size: 18px;
-    font-family: sans-serif;
-  }
-
-  .full-span {
-    grid-column: 2 / 4;
-  }
-  .input-slider {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .input-slider input[type="number"] {
-    width: 60px;
-    flex-shrink: 0;
-  }
-
-  .input-slider input[type="range"] {
-    flex: 1;
-    min-width: 0; /* allows shrinking if needed */
-  }
-
-  .span-2-4 {
-    grid-column: 2 / 4;
-  }
-
-  .span-2-4 input[type="number"] {
-    width: 110px;
-    flex-shrink: 0;
-  }
-  .span-4-6 {
-    grid-column: 4 / 6;
-  }
-  .span-5-6 {
-    grid-column: 5 / 6;
-  }
-  .span-descr {
-    grid-column: 1 / 4;
-  }
-
-  .label-cell {
-    grid-column: 1;
-    text-align: right;
-    align-self: center;
-  }
-
-  .segment-cell {
-    grid-column: 4 / span 2;
-    display: flex;
-  }
-
-  .segment-button {
-    padding: 0.25rem 0rem;
-    border: 1px solid #d0d0d0;
-    margin: 0.1rem -1px 0 0;
-    background: #fff;
-    /*  border-radius: 0.25rem; */
-    width: 8rem;
-    text-align: center;
-    cursor: pointer;
-    font-size: 17px;
-  }
-
-  .segment-button.active {
-    background: #e3e3e3;
-    color: #333;
-    /*  font-weight: bold;*/
-  }
-  .segment-button.active:hover {
-    background: #e0e0e0;
-  }
-  .segment-button:hover {
-    background: #fafafa;
-  }
-
-  .segmented-control__label {
-    display: block;
-    margin: 0.1em -1px 0 0;
-    padding: 0.05em 1em;
-    border: 1px solid #d2d2d2;
-    font-size: 0.85em;
-    text-align: center;
-    cursor: pointer;
-  }
-
-  .segment-button--start {
-    margin-left: 0.5em;
-    border-bottom-left-radius: 5px;
-    border-bottom-right-radius: 0;
-    border-top-left-radius: 5px;
-    border-top-right-radius: 0;
-  }
-  .segment-button--end {
-    margin-right: 0.5em;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 5px;
-    border-top-left-radius: 0;
-    border-top-right-radius: 5px;
-  }
-  #description {
-    margin-top: 20px;
-    margin-left: 20px;
-    margin-right: 50px;
-    font-size: 16px;
-    font-family: sans-serif;
-  }
-
-</style>
 
 <div id="controls">
-  <div></div>
-  <label>Distribution</label>
-  <label>Mean</label>
-  <label>Std Dev</label>
-  <label>Count</label>
+    <div></div>
+    <label>Distribution</label>
+    <label>Mean</label>
+    <label>Std Dev</label>
+    <label>Count</label>
 
-  <label>Group A</label>
-  <select id="distA">
-    <option value="normal">Normal</option>
-    <option value="lognormal">LogNormal</option>
-    <option value="uniform">Uniform</option>
-    <option value="exponential">Exponential</option>
-    <option value="pareto">Pareto</option>
-    <option value="cauchy">Cauchy</option>
-    <option value="binomial">Binomial</option>
-    <option value="old faithful">Old Faithful</option>
-  </select>
+    <label>Group A</label>
+    <select id="distA">
+        <option value="normal">Normal</option>
+        <option value="lognormal">LogNormal</option>
+        <option value="uniform">Uniform</option>
+        <option value="exponential">Exponential</option>
+        <option value="pareto">Pareto</option>
+        <option value="cauchy">Cauchy</option>
+        <option value="binomial">Binomial</option>
+        <option value="old faithful">Old Faithful</option>
+    </select>
 
-  <div class="input-slider">
-    <input type="number" id="meanA" min="0" max="10" step="0.1" value="3">
-    <input type="range" id="meanA-slider" min="0" max="10" step="0.1" value="3">
-  </div>
+    <div class="input-slider">
+        <input type="number" id="meanA" min="0" max="10" step="0.1" value="3">
+        <input type="range" id="meanA-slider" min="0" max="10" step="0.1" value="3">
+    </div>
 
-  <div class="input-slider">
-    <input type="number" id="stdA" min="0.1" max="3" step="0.1" value="1">
-    <input type="range" id="stdA-slider" min="0.1" max="3" step="0.1" value="1">
-  </div>
+    <div class="input-slider">
+        <input type="number" id="stdA" min="0.1" max="3" step="0.1" value="1">
+        <input type="range" id="stdA-slider" min="0.1" max="3" step="0.1" value="1">
+    </div>
 
-  <div class="input-slider">
-    <input type="number" id="countA" min="1" max="100000" step="1" value="100">
-    <input type="range" id="countA-slider" min="0" max="5" step="0.01" value="2">
-  </div>
+    <div class="input-slider">
+        <input type="number" id="countA" min="1" max="100000" step="1" value="100">
+        <input type="range" id="countA-slider" min="0" max="5" step="0.01" value="2">
+    </div>
 
-  <label>Group B</label>
-  <select id="distB">
-    <option value="normal">Normal</option>
-    <option value="lognormal">LogNormal</option>
-    <option value="uniform">Uniform</option>
-    <option value="exponential">Exponential</option>
-    <option value="pareto">Pareto</option>
-    <option value="cauchy">Cauchy</option>
-    <option value="binomial">Binomial</option>
-  </select>
+    <label>Group B</label>
+    <select id="distB">
+        <option value="normal">Normal</option>
+        <option value="lognormal">LogNormal</option>
+        <option value="uniform">Uniform</option>
+        <option value="exponential">Exponential</option>
+        <option value="pareto">Pareto</option>
+        <option value="cauchy">Cauchy</option>
+        <option value="binomial">Binomial</option>
+    </select>
 
-  <div class="input-slider">
-    <input type="number" id="meanB" min="0" max="10" step="0.1" value="7">
-    <input type="range" id="meanB-slider" min="0" max="10" step="0.1" value="7">
-  </div>
+    <div class="input-slider">
+        <input type="number" id="meanB" min="0" max="10" step="0.1" value="7">
+        <input type="range" id="meanB-slider" min="0" max="10" step="0.1" value="7">
+    </div>
 
-  <div class="input-slider">
-    <input type="number" id="stdB" min="0.1" max="3" step="0.1" value="2">
-    <input type="range" id="stdB-slider" min="0.1" max="3" step="0.1" value="2">
-  </div>
+    <div class="input-slider">
+        <input type="number" id="stdB" min="0.1" max="3" step="0.1" value="2">
+        <input type="range" id="stdB-slider" min="0.1" max="3" step="0.1" value="2">
+    </div>
 
-  <div class="input-slider">
-    <input type="number" id="countB" min="0" max="100000" step="1" value="100">
-    <input type="range" id="countB-slider" min="-0.1" max="5" step="0.01" value="2">
-  </div>
+    <div class="input-slider">
+        <input type="number" id="countB" min="0" max="100000" step="1" value="100">
+        <input type="range" id="countB-slider" min="-0.1" max="5" step="0.01" value="2">
+    </div>
 
-  <!-- Outlier Rule Row -->
-  <label>Outliers:</label>
-  <div class="input-slider span-2-4">
-    <input type="number" id="expected-count-input" min="0" max="2" step="0.01" value="0.33">
-    <input type="range" id="expected-count-slider" min="0" max="2" step="0.01" value="0.33" title="Roughly, portion of density tails to be considered outliers">
-  </div>
-  <div></div><div></div>
-<!--  <div class="segment-cell" id="outlier-mode-buttons">-->
-<!--    <button data-mode="Default" class="segment-button segment-button&#45;&#45;start">Default</button>-->
-<!--    <button data-mode="Adaptive" class="segment-button active segment-button&#45;&#45;end">Adaptive</button>-->
-<!--  </div>-->
+    <!-- Outlier Rule Row -->
+    <label>Outliers:</label>
+    <div class="input-slider span-2-4">
+        <input type="number" id="expected-count-input" min="0" max="2" step="0.01" value="0.33">
+        <input type="range" id="expected-count-slider" min="0" max="2" step="0.01" value="0.33"
+               title="Roughly, portion of density tails to be considered outliers">
+    </div>
+    <div></div>
+    <div></div>
+    <!--  <div class="segment-cell" id="outlier-mode-buttons">-->
+    <!--    <button data-mode="Default" class="segment-button segment-button&#45;&#45;start">Default</button>-->
+    <!--    <button data-mode="Adaptive" class="segment-button active segment-button&#45;&#45;end">Adaptive</button>-->
+    <!--  </div>-->
 
-  <label>Split Penalty</label>
-  <div class="input-slider span-2-4">
-    <input type="number" id="splitPenaltyInput" min="0" max="0.5" step="0.01" value="0.1">
-    <input type="range" id="splitPenalty" min="0" max="0.5" step="0.01" value="0.1" title="Penalty factor for splitting into multiple intervals">
-  </div>
-  <label>Random Seed</label>
-  <div class="input-slider span-5-6">
-    <input type="number" id="randomSeedInput" min="0" max="1000" step="1" value="213">
-    <input type="range" id="randomSeed" min="0" max="1000" step="1" value="213" title="Random seen for reproducibility">
-  </div>
+    <label>Split Penalty</label>
+    <div class="input-slider span-2-4">
+        <input type="number" id="splitPenaltyInput" min="0" max="0.5" step="0.01" value="0.1">
+        <input type="range" id="splitPenalty" min="0" max="0.5" step="0.01" value="0.1"
+               title="Penalty factor for splitting into multiple intervals">
+    </div>
+    <label>Random Seed</label>
+    <div class="input-slider span-5-6">
+        <input type="number" id="randomSeedInput" min="0" max="1000" step="1" value="213">
+        <input type="range" id="randomSeed" min="0" max="1000" step="1" value="213"
+               title="Random seen for reproducibility">
+    </div>
 
 </div>
 
@@ -226,8 +243,5 @@
 <svg id="plot" width="900" height="580"></svg>
 <div id="description" class="span-descr">
 </div>
-<script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/d3@7.0.0/dist/d3.min.js"></script>
-<script type="module" src="./main.js"></script>
 </body>
 </html>
