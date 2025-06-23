@@ -1,10 +1,14 @@
 {
-  "name": "${PROJECT_NAME}",
+  "type": "module",
+  "name": "data-strips",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "http-server": "^14.1.1"
+  }
 }
