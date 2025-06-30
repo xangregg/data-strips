@@ -4,10 +4,13 @@ import Data from './sampleData.js';
 
 const svg = d3.select('#plot');
 const width = +svg.attr('width');
-const rowLabelWidth = 150;
+const rowLabelWidth = 160;
+const rowPlotTop = 5;
+const rowPlotHeight = 30;
+const rowPlotGap = 14;
 
 const xDomain = [-3, 13];
-const xScale = d3.scaleLinear().domain(xDomain).range([rowLabelWidth + 10, width - 10]);
+const xScale = d3.scaleLinear().domain(xDomain).range([rowLabelWidth + 15, width - 10]);
 
 function getControlValues() {
     return {
@@ -23,14 +26,12 @@ function getControlValues() {
             std: +document.getElementById('stdB').value,
             count: +document.getElementById('countB').value,
         },
+        outlierAlpha: +document.getElementById('outlier-sensitivity-input').value,
         splitPenalty: +document.getElementById('splitPenalty').value,
         randomSeed: +document.getElementById('randomSeed').value,
     };
 }
 
-const rowPlotTop = 10;
-const rowPlotHeight = 30;
-const rowPlotGap = 15;
 
 // dark orange #d86a18
 const rowPlots = [
@@ -43,13 +44,13 @@ const rowPlots = [
     },
     {
         label: 'KDE', height: 1.4, draw: drawKDEs, color: '#999',
-        levels: [0.25, 1.0],   // bandwidth multipliers
+        levels: [0.25, 0.5, 1.0],   // bandwidth multipliers
         description: `Kernel Density Estimation using a gaussian kernel and multiple bandwidths.`
     },
     {
         label: 'Rug', height: 0.4, draw: drawRug, color: '#333',
         levels: [],
-        description: `Rug plot with a vertical line at each data point, up to 2000 points.`
+        description: `Rug plot with a vertical line at each data point.`
     },
     {
         label: 'Density Strip', height: 1.0, draw: drawStripPlot, color: '#444',
@@ -57,17 +58,32 @@ const rowPlots = [
         description: `Kernel Density Estimation using color and a bandwidth multiplier of 50%.`
     },
     {
-        label: 'HDR', height: 1.0, draw: drawDensityBands, color: '#2171b5',
+        label: 'HDR 50/95/99', height: 1.0, draw: drawDensityBands, color: '#2171b5',
         levels: [0.0, 0.5, 0.95, 0.99],
-        description: `Highest Density Regions plot with cut-off points at 0.0, 0.5, 0.95, and 0.99.
+        description: `Highest Density Regions plot with cut-off points at mode, 0.5, 0.95, and 0.99.
         Values beyond the widest region are shown as outlier dots.`
     },
     {
-        label: 'Adaptive HDR', height: 1.0, draw: drawDensityBands, color: '#238b45',
-        levels: [0.0, 0.5, 1.0],
-        description: `Highest Density Regions plot with cut-off points at 0.0, 0.5,
-         and an adaptive outlier threshold based on a gaussian extrapolation of the middle region.
+        label: 'HDR 50/90/Grubbs', height: 1.0, draw: drawDensityBands, color: '#238b45',
+        levels: [0.0, 0.5, 0.90, 1.0],
+        description: `Highest Density Regions plot with cut-off points at mode, 0.5, 0.9,
+         and using Grubbs' outlier threshold after estimating the mean and SD from the 50% and 90% regions.
          Values beyond the outlier threshold are shown as dots.`
+    },
+    {
+        label: 'HDR 33/67/Grubbs', height: 1.0, draw: drawDensityBands, color: '#238b45',
+        levels: [1/3, 2/3, 1.0],
+        description: `Highest Density Regions plot with cut-off points at 1/3, 2/3,
+         and using Grubbs' outlier threshold after estimating the mean and SD from the 1/3 and 2/3 region.
+         Values beyond the outlier threshold are shown as dots.`
+    },
+    {
+        label: 'Shortest Thirds', height: 1.0, draw: drawDensityBands, color: '#238b45',
+        levels: [1/3, 2/3, 1.0],
+        description: `Shortest regions that contain 1/3 and 2/3 of the values.
+         The widest interval shows Grubbs' outlier threshold after estimating the mean and SD from the shortest regions.
+         Values beyond the outlier threshold are shown as dots.
+         Remaining non-empty data regions (quasi-outliers) are shown as reduced-height filled regions.`
     },
     // {
     //     label: 'Shortest Half', height: 1.0, draw: drawDensityBands, color: '#238b45',
@@ -78,7 +94,7 @@ const rowPlots = [
         label: 'Shortest Halves', height: 1.0, draw: drawDensityBands, color: '#238b45',
         levels: [0, 0.0625, 0.125, 0.25, 0.5, 1],
         description: `The shortest contiguous half that contains at least 50% of the data, applied iteratively to show 1/2, 1/4, 1/8, 1/16 and the shortest half mode.
-         The widest interval shows an adaptive outlier threshold based on a gaussian extrapolation of the 50% region.
+         The widest interval shows Grubbs' outlier threshold after estimating the mean and SD from the 25% and 50% regions.
          Values beyond the outlier threshold are shown as dots.`
     },
     // {
@@ -89,36 +105,40 @@ const rowPlots = [
     {
         label: 'Equal Gaussian', height: 1.0, draw: drawDensityBands, color: '#238b45',
         levels: [0.5, 1.5, 2.5],
-        description: `Quantile regions at percentiles that correspond to equal intervals if the data is Gaussian. Each region would be one standard deviation wide.
-         Values beyond an adaptive outlier threshold based on a gaussian extrapolation of the middle region are shown as dots. Remaining non-empty data regions (quasi-outliers) are shown as reduced-height filled regions.`
+        description: `Quantile regions at percentiles that correspond to equal intervals if the data is Gaussian.
+         For Gaussian data, each region would be one standard deviation wide.
+         A Grubbs' outlier threshold after estimating the mean and SD from the shortest regions.
+         Values beyond the outlier threshold are shown as dots.
+         Remaining non-empty data regions (quasi-outliers) are shown as reduced-height filled regions.`
     },
     {
-        label: 'Density Rug', height: 1.0, draw: drawDensityBands, color: '#238b45',
+        label: '20/50/80 Rug', height: 1.0, draw: drawDensityBands, color: '#238b45',
         levels: [0.2, 0.5, 0.8],
         description: `Shortest regions of 20%, 50%, and 80% of the data, allowing for split regions penalized according to the Split Penalty.
          Other values are shown as a rug plot, except touching values are connected as a single region to avoid looking more dense than the shortest regions.`
     },
     {
-        label: 'Shorth and Mode', height: 1.0, draw: drawDensityBands, color: '#238b45',
-        levels: [0, 0.5, 1],
+        label: 'Shortest 0/50/95', height: 1.0, draw: drawDensityBands, color: '#238b45',
+        levels: [0, 0.5, 0.95, 1],
         description: `Shortest half of the data as one or two contiguous intervals; any split is penalized according to the Split Penalty.
          A vertical line shows the "half sample mode" which is the iteratively applied shortest half.
-         The outer interval extends to an adaptive outlier threshold based on a gaussian extrapolation of the 50% region.
-         Values beyond the outer interval are shown as dots.`
+         The widest interval shows Grubbs' outlier threshold after estimating the mean and SD from the mode and 50% regions.
+         Values beyond the outlier threshold are shown as dots.`
     },
+    // {
+    //     label: 'IQR and Median', height: 1.0, draw: drawDensityBands, color: '#238b45',
+    //     levels: [0, 0.5, 0.993], //  only used for coloring, box plot quantiles are used instead
+    //     description: `Inner region shows Interquartile Range (IQR) of the data with a line at the median.
+    //      The outer interval extends to an adaptive outlier threshold based on a gaussian extrapolation of the IQR region.
+    //      Values beyond the outer interval are shown as dots.`
+    // },
     {
-        label: 'IQR and Median', height: 1.0, draw: drawDensityBands, color: '#238b45',
+        label: 'Grubbs Box', height: 0.8, draw: drawBoxPlot, color: '#238b45', // light green '#D6E8D8'
         levels: [0, 0.5, 0.993], //  only used for coloring, box plot quantiles are used instead
         description: `Inner region shows Interquartile Range (IQR) of the data with a line at the median.
-         The outer interval extends to an adaptive outlier threshold based on a gaussian extrapolation of the IQR region.
-         Values beyond the outer interval are shown as dots.`
-    },
-    {
-        label: 'Adaptive Box', height: 0.8, draw: drawBoxPlot, color: '#238b45', // light green '#D6E8D8'
-        levels: [0, 0.5, 0.993], //  only used for coloring, box plot quantiles are used instead
-        description: `Inner region shows Interquartile Range (IQR) of the data with a line at the median.
-         The outer interval extends to an adaptive outlier threshold based on a gaussian extrapolation of the IQR region.
-         When the outer region extends beyond the common box plot whiskers (1.5 IQR), the endcaps are shown as arcs.
+         The whiskers extend to the last data point within a Grubbs' outlier threshold
+         after estimating the mean and SD from the median and IQR regions.
+         When the outer region extends beyond the Tukey box plot whiskers (1.5 IQR), the endcaps are shown as arcs.
          Values beyond the outer interval are shown as dots.`
     },
     {
@@ -140,8 +160,11 @@ function getStdPercentiles(data, levels) {
 }
 
 function getPercentiles(data, plotInfo) {
-    if (plotInfo.label.includes('Gaussian'))
-        return getStdPercentiles(data, plotInfo.levels);
+    if (plotInfo.label.includes('Gaussian')) {
+        let p = getStdPercentiles(data, plotInfo.levels);
+        p.push(1.0);
+        return p;
+    }
     return plotInfo.levels;
 }
 
@@ -188,9 +211,9 @@ function draw(controlPanelParams) {
 }
 
 function drawRug(sorted, y, height, plotInfo) {
-    if (sorted.length > 2000) {
-        sorted = sorted.slice(0, 200).concat(sorted.slice(-200)); // for drawing performance
-    }
+    // if (sorted.length > 10,000) {
+    //     sorted = sorted.slice(0, 200).concat(sorted.slice(-200)); // for drawing performance
+    // }
     svg.selectAll('line.rug')
         .data(sorted)
         .join('line')
@@ -205,6 +228,154 @@ function drawRug(sorted, y, height, plotInfo) {
 function scaleFactorForPercentile(p, df) {
     const z = jStat.studentt.inv(0.5 + p / 2, df); // e.g., 0.5 ± 0.25 for p=0.5
     return 1 / z;
+}
+
+function estimateSDFromShortest(n, p, w) {
+    const df = n - 1;
+    const tw = w / 2;   // assume a centered interval
+    const t = jStat.studentt.inv(0.5 + p/2, df);
+    return tw / t;
+}
+
+// https://www.qualitydigest.com/inside/statistics-column/some-outlier-tests-part-2-011121.html
+function grubbsG(n, alpha) {
+    if (n <= 3)
+        return 0;
+    const df = n - 2;
+    const upperTailArea = alpha / (2 * n);
+    const t = jStat.studentt.inv(1 - upperTailArea, df);
+    const tt = t * t;
+    const gg = (n - 1) * (n - 1)  * tt / (n * (n - 2 + tt));
+    return Math.sqrt(gg);
+}
+
+function grubbsLower(m, sd, n, alpha) {
+    return m - sd * grubbsG(n, alpha);
+}
+
+function grubbsUpper(m, sd, n, alpha) {
+    return m + sd * grubbsG(n, alpha);
+}
+
+function grubbsHalfWidth(nHalf, pHalf, wHalf, alpha) {
+    // pretend this is one half of a symmetric t distribution
+    const sd = estimateSDFromShortest(nHalf * 2,  pHalf * 2, 2 * wHalf);
+    return sd * grubbsG(nHalf * 2, alpha);
+}
+
+function grubbsRangeFromIntervals(sorted, centralInterval, spreadInterval, alpha) {
+    const n = sorted.length;
+    if (n === 0 || spreadInterval == null)
+        return null;
+    if (n === 1)
+        return [sorted[0], sorted[0]];
+    const nSpread = SI.intervalCount(spreadInterval);
+    if (nSpread <= 2) {
+        // tiny intervals (even count==1) can happen from HDR
+        return [sorted[spreadInterval[0]], sorted[spreadInterval[1]]];
+    }
+    if (nSpread === n) {
+        return [sorted[spreadInterval[0]], sorted[spreadInterval[1]]];
+    }
+    
+    if (centralInterval === null) {
+        const spreadMiddle = (spreadInterval[0] + spreadInterval[1]) / 2;
+        let [lo, hi] = [Math.floor(spreadMiddle), Math.ceil(spreadMiddle)];
+        while (lo > spreadInterval[0] && sorted[lo] === sorted[lo - 1]) {
+            lo--;
+        }
+        while (hi < spreadInterval[1] && sorted[hi] === sorted[hi + 1]) {
+            hi++;
+        }
+        centralInterval = [lo, hi];
+    }
+
+    const spreadP = nSpread / n;
+    const spreadWidth = SI.intervalWidth(sorted, spreadInterval);
+    // use midrange: expecting central interval to be narrow,
+    // and expecting midrange to be more stable than mean or median for tiny n
+    let centralEstimate = (sorted[centralInterval[0]] + sorted[centralInterval[1]])/2;
+
+    // constrain central estimate is to somewhat central within the spread region;
+    // half-sample mode, in particular, can be at the edge
+    let minCentralEstimate = sorted[spreadInterval[0]] + spreadWidth * 0.1;
+    let maxCentralEstimate = sorted[spreadInterval[0]] + spreadWidth * 0.9;
+    centralEstimate = Math.min(centralEstimate, maxCentralEstimate);
+    centralEstimate = Math.max(centralEstimate, minCentralEstimate);
+    const nCentral = SI.intervalCount(centralInterval);
+    const nLower = nCentral / 2 + centralInterval[0];
+    const nUpper = nCentral / 2 + n - 1 - centralInterval[1];
+
+    const [xLower, xUpper] = [sorted[spreadInterval[0]], sorted[spreadInterval[1]]];
+    const grubbsLowerFromInterval = centralEstimate - grubbsHalfWidth(nLower, spreadP / 2, centralEstimate - xLower, alpha);
+    const grubbsUpperFromInterval = centralEstimate + grubbsHalfWidth(nUpper, spreadP / 2, xUpper - centralEstimate, alpha);
+    return [grubbsLowerFromInterval, grubbsUpperFromInterval];
+}
+
+function offsetInterval(interval, offset) {
+    if (!interval) {
+        return interval;
+    }
+    return interval.map(i => i + offset);
+}
+
+function sliceSorted(sorted, centralInterval, spreadInterval, first, last) {
+    if (first === 0 && last === sorted.length - 1) {
+        // nothing to do
+    }
+    else {
+        sorted = sorted.slice(first, last + 1);
+        if (first > 0) {
+            centralInterval = offsetInterval(centralInterval, -first);
+            spreadInterval = offsetInterval(spreadInterval, -first);
+        }
+    }
+    return [sorted, centralInterval, spreadInterval];
+}
+
+// returns a one or more interval of data values [[xlo, xhi]+] which define the Grubbs' outlier range.
+// The mean and SD used for the Grubbs calculation are inferred from assuming
+// the intervals come from a Student's T distribution.
+// The range is snapped to the most extreme included points.
+function grubbsRangesFromShortest(sorted, centralIntervals, spreadIntervals, alpha = 0.5) {
+    const n = sorted.length;
+    if (n === 0)
+        return null;
+    if (n === 1)
+        return [sorted[0], sorted[0]];
+
+    let outlierBands = [];
+    let splits = [0, n];
+    for (let i = 1; i < spreadIntervals.length; i++) {
+        // enforce a min count in the weighted mean to avoid extreme lopsided cases (from tiny HDR regions)
+        const n0 = Math.max(5, SI.intervalCount(spreadIntervals[i - 1]));
+        const n1 = Math.max(5, SI.intervalCount(spreadIntervals[i]));
+        const breakIndex = Math.ceil((spreadIntervals[i - 1][1] * n1 + spreadIntervals[i][0] * n0) / (n0 + n1));
+        splits.splice(i, 0, breakIndex);
+    }
+    for (const [is, spreadInterval] of spreadIntervals.entries()) {
+        let localCentralInterval = null;
+        let localSorted = sorted;
+        let localSpreadInterval = spreadInterval;
+        for (const centralInterval of centralIntervals) {
+            if (centralInterval[0] >= spreadInterval[0] && centralInterval[1] <= spreadInterval[1]) {
+                localCentralInterval = centralInterval;
+                break;
+            }
+        }
+        [localSorted, localCentralInterval, localSpreadInterval] = sliceSorted(localSorted, localCentralInterval, localSpreadInterval,
+            splits[is], splits[is + 1] - 1);
+        const band = grubbsRangeFromIntervals(localSorted, localCentralInterval, localSpreadInterval, alpha);
+        outlierBands = SI.unionInterval(outlierBands, band);
+    }
+    const outlierIntervals = outlierBands.map(band => bandToInterval(sorted, band));
+    const outlierDataBands = outlierIntervals.map(band => [sorted[band[0]], sorted[band[1]]]);
+    return outlierDataBands;
+}
+
+function grubbsRangeFromShortest(sorted, centralIntervals, spreadIntervals, alpha = 0.5) {
+    const bands = grubbsRangesFromShortest(sorted, centralIntervals, spreadIntervals, alpha);
+    return [bands[0][0], bands[bands.length - 1][1]];
 }
 
 function extrapolatedGaussianRange1(sorted, centralP, centralBand, centralEstimate, nCentral, expectedCount = 0.5) {
@@ -284,7 +455,12 @@ function computeBoxPlotStats(sorted) {
 function drawBoxPlot(sorted, y, height, plotInfo) {
     const capHeight = height * 2 / 3;
     const ym = y + height / 2;
-    let outlierBand = plotInfo.label.includes('Adaptive') ? extrapolatedGaussianRange(sorted, 0.5, [[boxPlotStats.q1, boxPlotStats.q3]], boxPlotStats.median, expectedOutlierCount) : null;
+    const medianInterval = [Math.floor(sorted.length / 2), Math.ceil(sorted.length / 2)];
+    const iqrInterval = [d3.bisectLeft(sorted, boxPlotStats.q1), d3.bisectRight(sorted, boxPlotStats.q3) - 1];
+    let outlierBand = !plotInfo.label.includes('Tukey')
+        ? grubbsRangeFromShortest(sorted, [medianInterval], [iqrInterval], getControlValues().outlierAlpha)
+        // ? extrapolatedGaussianRange(sorted, 0.5, [[boxPlotStats.q1, boxPlotStats.q3]], boxPlotStats.median, expectedOutlierCount)
+        : null;
     const extendLower = outlierBand && outlierBand[0] < boxPlotStats.lowerWhisker;
     const extendUpper = outlierBand && outlierBand[1] > boxPlotStats.upperWhisker;
     const loWhisker = extendLower ? outlierBand[0] : boxPlotStats.lowerWhisker;
@@ -427,7 +603,7 @@ function silvermanBandwidth(data) {
     return 1.06 * stdDev * Math.pow(n, -1 / 5);
 }
 
-function dataDensity(sorted, bandwidthScale = 1.0, nSubIntervals = 100, pad = 0.01) {
+function dataDensity(sorted, bandwidthScale = 1.0, nSubIntervals = 100, pad = 0.05) {
     // Estimate density, can use a smaller bandwidth that default for diagnostic use
     const [dataMin, dataMax] = d3.extent(sorted);
     const dataWidth = dataMax - dataMin;
@@ -589,6 +765,25 @@ function drawQuasiOutlierBands(bands, y, height, color) {
     }
 }
 
+// force in the sense that an empty band will be expanded to include the two surrounding points
+function bandToInterval(sorted, band, forceNonEmpty = true) {
+    let lo = d3.bisectLeft(sorted, band[0]);
+    let hi = d3.bisectRight(sorted, band[1]) - 1;
+    if (forceNonEmpty && lo === hi + 1) {
+        // force the empty region to include surrounding points
+        lo--;
+        hi++;
+    }
+    if (lo > hi) {
+        throw "unexpected";
+    }
+    return [lo, hi];
+}
+
+function bandsToIntervals(sorted, bands, forceNonEmpty = true) {
+    return bands.map(band => bandToInterval(sorted, band, forceNonEmpty));
+}
+
 function drawDensityBands(sorted, y, height, plotInfo) {
     const percentiles = [...getPercentiles(sorted, plotInfo)].sort(d3.descending);
     const colors = getPercentileColors(percentiles, plotInfo.color);
@@ -596,53 +791,65 @@ function drawDensityBands(sorted, y, height, plotInfo) {
     const bandsMap = new Map();
     // console.log(label, percentiles);
     let withinIntervals = [[0, sorted.length - 1]];
-    const useOutlierThreshold = !plotInfo.label.includes('Rug') && plotInfo.label !== 'HDR';
+    const useOutlierThreshold = !plotInfo.label.includes('Rug') &&
+        !(plotInfo.label.includes('HDR') && !plotInfo.label.includes('Grubb'));
     const hdrThresholds = plotInfo.label.includes('HDR') ? hdr.computeHDRRegions(hdrKDE, percentiles) : null;
 
-    let outlierBand = null;
+    let outlierBands = [];
+
+    function getAllowSplit(p) {
+        return !plotInfo.label.includes('Shortest Hal') && p >= 0.25 && p * sorted.length >= 5;
+    }
+
     if (plotInfo.label.includes('IQR and Median')) {
         // use quantiles instead of shortest intervals
-        outlierBand = extrapolatedGaussianRange(sorted, 0.5, [[boxPlotStats.q1, boxPlotStats.q3]], boxPlotStats.median, expectedOutlierCount);
-        //bandsMap.set(percentiles[0], [[boxPlotStats.lowerWhisker, boxPlotStats.upperWhisker]]);
-        bandsMap.set(percentiles[0], [[outlierBand[0], outlierBand[1]]]);
+        const medianInterval = [Math.floor(sorted.length / 2), Math.ceil(sorted.length / 2)];
+        const iqrInterval = bandToInterval(sorted, [boxPlotStats.q1, boxPlotStats.q3]);
+        outlierBands = grubbsRangesFromShortest(sorted, [medianInterval], [iqrInterval], getControlValues().outlierAlpha);
+        bandsMap.set(percentiles[0], [outlierBands[0]]);
         bandsMap.set(percentiles[1], [[boxPlotStats.q1, boxPlotStats.q3]]);
         bandsMap.set(percentiles[2], [[boxPlotStats.median, boxPlotStats.median]]);
     } else {
-        if (!plotInfo.label.includes('HDR')) {
-            // prep for shortest percentiles
-            const pCentral = d3.scaleLinear().domain([50, 100]).range([0.7, 0.5]).clamp(true)(sorted.length);
-            const centralInterval = SI.shortestIntervals(sorted, pCentral)[0];
-            const centralBand = [sorted[centralInterval[0]], sorted[centralInterval[1]]];
-            const modeInterval = SI.shortestIntervals(sorted, 0)[0];
-            const modeBand = [sorted[modeInterval[0]], sorted[modeInterval[1]]];
-            const centralEstimate = d3.mean(modeBand);
-            outlierBand = extrapolatedGaussianRange(sorted, 0.5, [centralBand], centralEstimate, expectedOutlierCount);
-            if (useOutlierThreshold && percentiles[0] === 1) {
-                withinIntervals = [[d3.bisectLeft(sorted, outlierBand[0]), d3.bisectRight(sorted, outlierBand[1]) - 1]];
+        if (useOutlierThreshold) {
+            // for Grubbs' outliers, the spread interval is the widest interval <= 95%
+            // and the central interval is the next narrower one
+            let ips = 0;
+            while (percentiles[ips] > 0.95) {
+                ips++;
+            }
+            let pSpread = percentiles[ips];
+            let pCentral = ips + 1 < percentiles.length ? percentiles[ips + 1] : pSpread / 2;
+            if (plotInfo.label.includes('HDR')) {
+                // use KDE thresholds instead of shortest regions
+                const hdrSpreadBands = hdr.extractHDRBands(hdrKDE, hdrThresholds[ips].threshold);
+                const hdrCentralBands = hdr.extractHDRBands(hdrKDE, hdrThresholds[ips + 1].threshold);
+                const hdrSpreadIntervals = hdrSpreadBands.map(b => bandToInterval(sorted, b));
+                const hdrCentralIntervals = hdrCentralBands.map(b => bandToInterval(sorted, b));
+                outlierBands = grubbsRangesFromShortest(sorted, hdrCentralIntervals, hdrSpreadIntervals, getControlValues().outlierAlpha);
+            }
+            else {
+                // prep for shortest percentiles
+                const spreadIntervals = SI.shortestIntervals(sorted, pSpread, getAllowSplit(pSpread), getControlValues().splitPenalty);
+                const centralIntervals = SI.shortestIntervalsWithin(sorted, spreadIntervals, pCentral, getAllowSplit(pCentral), getControlValues().splitPenalty);
+                outlierBands = grubbsRangesFromShortest(sorted, centralIntervals, spreadIntervals, getControlValues().outlierAlpha);
+                if (useOutlierThreshold && percentiles[0] === 1) {
+                    withinIntervals = bandsToIntervals(sorted, outlierBands);
+                }
             }
         }
         for (const [i, p] of percentiles.entries()) {
             let bands = [];
             if (plotInfo.label.includes('HDR')) {
+                // use KDE thresholds instead of shortest regions
                 const hdrBands = hdr.extractHDRBands(hdrKDE, hdrThresholds[i].threshold);
-                if (i === 0) {
-                    // peek ahead for central region (p == 0.5)
-                    const hdrBandsCentral = hdr.extractHDRBands(hdrKDE, hdrThresholds[1].threshold);
-                    outlierBand = extrapolatedGaussianRange(sorted, 0.5, hdrBandsCentral, hdrBands[0][0], expectedOutlierCount);
-                    if (isNaN(outlierBand[0]) || isNaN(outlierBand[1]))
-                        outlierBand = extrapolatedGaussianRange(sorted, 0.5, hdrBandsCentral, hdrBands[0][0], expectedOutlierCount);
+                if (useOutlierThreshold) {
+                    bands = SI.intersectIntervals(hdrBands, outlierBands);
                 }
-                for (let [x0, x1] of hdrBands) {
-                    if (useOutlierThreshold) {
-                        // constrain HDR bands to outlierBand
-                        x0 = Math.min(Math.max(x0, outlierBand[0]), outlierBand[1]);
-                        x1 = Math.min(Math.max(x1, outlierBand[0]), outlierBand[1]);
-                    }
-                    bands.push([x0, x1]);
+                else {
+                    bands = hdrBands;
                 }
             } else {
-                const allowSplit = !plotInfo.label.includes('Shortest Hal') && p >= 0.25 && p * sorted.length >= 10;
-                // const effectiveP = useOutlierThreshold && p > 0.9 ? 1.0 : p;
+                const allowSplit = getAllowSplit(p);
                 const intervals = SI.shortestIntervalsWithin(sorted, withinIntervals, p, allowSplit, getControlValues().splitPenalty);
                 for (const [first, last] of intervals) {
                     bands.push([sorted[first], sorted[last]]);
@@ -665,9 +872,7 @@ function drawDensityBands(sorted, y, height, plotInfo) {
     let widestBands = bandsMap.get(percentiles[0]);
     if (useOutlierThreshold) {
         // draw a quasi-outlier band (region between the widest specified band and outliers), which will likely be covered up
-        const xlo = Math.min(widestBands[0][0], outlierBand[0]);
-        const xhi = Math.max(widestBands[widestBands.length - 1][1], outlierBand[1]);
-        widestBands = [[xlo, xhi]];
+        widestBands = outlierBands;
         drawQuasiOutlierBands(widestBands, y, height, colors[percentiles.length - 1]);
     }
     for (const [i, p] of percentiles.entries()) {
@@ -709,16 +914,14 @@ function drawDensityBands(sorted, y, height, plotInfo) {
     drawBands(0, 1, rugBands, 0);
     drawOutliers(outliers, sorted, y, height, plotInfo, colors[0]);
     // if (useOutlierThreshold) {
-    //     drawBandOrSliver(outlierBand[0], outlierBand[0], y - 2, height + 4, 'red');
-    //     drawBandOrSliver(outlierBand[1], outlierBand[1], y - 2, height + 4, 'red');
+    //     drawQuasiOutlierBands(outlierBands, y + height/2, 2, 'red');
+        // drawBandOrSliver(outlierBand[0], outlierBand[0], y - 2, height + 4, 'red');
+        // drawBandOrSliver(outlierBand[1], outlierBand[1], y - 2, height + 4, 'red');
     // }
 }
 
 let hdrKDE = null;
 let boxPlotStats = null;
-let smoothShortestHalf = null;
-let selectedOutlierMode = 'IQR';
-let expectedOutlierCount = 1;
 
 function update() {
     const params = getControlValues();
@@ -732,7 +935,6 @@ function generateCompositeData(params) {
     const dataB = generateGroupData(groupB, params.randomSeed * params.groupB.count * 31);
     const sortedData = [...dataA, ...dataB].sort(d3.ascending);
     hdrKDE = dataDensity(sortedData, 0.5, 200);
-    smoothShortestHalf = SI.shortestIntervals(sortedData, 0.5, false, 0)[0];
     boxPlotStats = computeBoxPlotStats(sortedData);
 
     return sortedData;
@@ -822,6 +1024,7 @@ syncSliderAndInput('meanB-slider', 'meanB', triggerUpdate);
 syncSliderAndInput('stdB-slider', 'stdB', triggerUpdate);
 syncSliderAndInput('countB-slider', 'countB', triggerUpdate, 'log');
 
+syncSliderAndInput('outlier-sensitivity-slider', 'outlier-sensitivity-input', update);
 syncSliderAndInput('splitPenalty', 'splitPenaltyInput', update);
 syncSliderAndInput('randomSeed', 'randomSeedInput', update);
 
@@ -832,30 +1035,14 @@ function addChangeListener(id, callback) {
 ['distA', 'distB'].forEach(id => addChangeListener(id, update));
 
 // Set up segment control buttons
-document.querySelectorAll('#outlier-mode-buttons .segment-button').forEach(btn => {
-    btn.addEventListener('click', () => {
-        selectedOutlierMode = btn.dataset.mode;
-        document.querySelectorAll('#outlier-mode-buttons .segment-button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        update();
-    });
-});
-
-// Sync number input and slider
-const countInput = document.getElementById('expected-count-input');
-const countSlider = document.getElementById('expected-count-slider');
-
-countInput.addEventListener('input', () => {
-    expectedOutlierCount = countInput.value;
-    countSlider.value = expectedOutlierCount;
-    update();
-});
-
-countSlider.addEventListener('input', () => {
-    expectedOutlierCount = countSlider.value;
-    countInput.value = expectedOutlierCount;
-    update();
-});
+// document.querySelectorAll('#outlier-mode-buttons .segment-button').forEach(btn => {
+//     btn.addEventListener('click', () => {
+//         selectedOutlierMode = btn.dataset.mode;
+//         document.querySelectorAll('#outlier-mode-buttons .segment-button').forEach(b => b.classList.remove('active'));
+//         btn.classList.add('active');
+//         update();
+//     });
+// });
 
 svg.on("mousemove", function(event) {
     const descriptionBox = d3.select("#description");

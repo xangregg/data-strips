@@ -20,7 +20,7 @@ function intervalWidth(sorted, firstLast) {
 }
 
 function intervalCount(firstLast) {
-    return firstLast === null ? 0 : firstLast[1] - firstLast[0] + 1;
+    return firstLast === null || firstLast[1] <= firstLast[0] ? 0 : firstLast[1] - firstLast[0] + 1;
 }
 
 function intervalsWidth(sorted, intervals) {
@@ -35,7 +35,51 @@ function isIntervalsEmpty(intervals) {
     return intervals.length === 0;
 }
 
-function removeSubInterval(intervals, subInterval) {
+function unionInterval(intervals, subInterval) {
+    if (subInterval === null)
+        return intervals;
+    if (isIntervalsEmpty(intervals))
+        return [subInterval];
+
+    let result = [];
+    for (const interval of intervals) {
+        if (subInterval) {
+            if (interval[1] < subInterval[0]) {
+                result.push(interval);
+            }
+            else if (interval[0] > subInterval[1]) {
+                result.push(subInterval);
+            }
+            else {
+                result.push([Math.min(interval[0], subInterval[0]), Math.max(interval[1], subInterval[1])]);
+                subInterval = null
+            }
+        }
+        else {
+            // subInterval already incorporated into previous item
+            if (interval[0] <= result[result.length - 1][1]) {
+                result[result.length - 1][1] = Math.max(interval[1], result[result.length - 1][1]);
+            }
+            else {
+                result.push(interval);
+            }
+        }
+    }
+    if (subInterval) {
+        result.push(subInterval);
+    }
+    return result;
+}
+
+function unionIntervals(intervals, subIntervals) {
+    let result = intervals;
+    for (const subInterval of subIntervals) {
+        result = unionInterval(result, subInterval);
+    }
+    return result;
+}
+
+function subtractInterval(intervals, subInterval, incr = 1) {
     if (subInterval === null)
         return intervals;
 
@@ -44,22 +88,22 @@ function removeSubInterval(intervals, subInterval) {
         if (interval[0] <= subInterval[0] && interval[1] >= subInterval[1]) {
             // fully overlapping
             if (interval[0] < subInterval[0]) {
-                result.push([interval[0], subInterval[0] - 1]);
+                result.push([interval[0], subInterval[0] - incr]);
             }
             if (interval[1] > subInterval[1]) {
-                result.push([subInterval[1] + 1, interval[1]]);
+                result.push([subInterval[1] + incr, interval[1]]);
             }
         }
         else if (interval[0] <= subInterval[0] && interval[1] >= subInterval[0]) {
             // partially overlapping -- not expected
             if (interval[0] < subInterval[0]) {
-                result.push([interval[0], subInterval[0] - 1]);
+                result.push([interval[0], subInterval[0] - incr]);
             }
         }
         else if (interval[0] <= subInterval[1] && interval[1] >= subInterval[1]) {
             // partially overlapping -- not expected
             if (interval[1] > subInterval[1]) {
-                result.push([subInterval[1] + 1, interval[1]]);
+                result.push([subInterval[1] + incr, interval[1]]);
             }
         }
         else {
@@ -70,10 +114,25 @@ function removeSubInterval(intervals, subInterval) {
     return result;
 }
 
-function removeSubIntervals(intervals, subIntervals) {
+function subtractIntervals(intervals, subIntervals, incr = 1) {
     let result = intervals;
     for (const subInterval of subIntervals) {
-        result = removeSubInterval(result, subInterval);
+        result = subtractInterval(result, subInterval, incr);
+    }
+    return result;
+}
+
+function intersectIntervals(as, bs) {
+    let result = [];
+    for (const a of as) {
+        for (const b of bs) {
+            if (a[0] <= b[1] && b[0] <= a[1]) {
+                const ab = [Math.max(a[0], b[0]), Math.min(a[1], b[1])];
+                if (ab[0] <= ab[1]) {
+                    result.push(ab);
+                }
+            }
+        }
     }
     return result;
 }
@@ -148,16 +207,21 @@ function shortestIntervalsWithinUsingCost(sorted, within, intervalTargetCount, a
         let totalWidth = intervalsWidth(sorted, firstIntervals) + splitCost;
         if (totalWidth >= bestWidth)
             return; // already bigger than best
+        if (totalWidth === 0)
+            return; // split parts can't be 0-width
         const firstPartCount = intervalsCount(firstIntervals);
         if (firstPartCount >= intervalTargetCount)
             return; // nothing left for second part (overflow because of ties)
         const secondPartTargetCount = Math.max(minPartCount, intervalTargetCount - firstPartCount);
-        const remainingWithin = removeSubIntervals(within, firstIntervals);
+        const remainingWithin = subtractIntervals(within, firstIntervals);
         const secondIntervals = shortestIntervalsWithinUsingCost(sorted, remainingWithin, secondPartTargetCount, false, 0);
 
         if (firstPartCount + intervalsCount(secondIntervals) >= intervalTargetCount) {
             // success, now see if it's an improvement
-            totalWidth += intervalsWidth(sorted, secondIntervals);
+            const secondWidth = intervalsWidth(sorted, secondIntervals);
+            if (secondWidth === 0)
+                return; // split parts can't be 0-width
+            totalWidth += secondWidth;
             if (totalWidth < bestWidth) {
                 best = firstIntervals.concat(secondIntervals).sort((a, b) => a[0] - b[0]);
                 bestWidth = totalWidth;
@@ -240,7 +304,7 @@ function shortestIntervalsWithin(sorted, within, percentile = 0.5, allowSplit = 
     const splitCost = splitPenaltyRatio * intervalsWidth(sorted, shortestRange);// * Math.min(percentile / 0.5, 1.0);
 
     const best = shortestIntervalsWithinUsingCost(sorted, within, targetCount, allowSplit, splitCost);
-    // console.log('shortest from ' + within + '  ' + targetCount + '#  => ' + best);
+    // console.log('shortest ' + percentile + ' from ' + within + '  ' + targetCount + '#  => ' + best);
     return best;
 }
 
@@ -250,17 +314,20 @@ export function shortestIntervals(sorted, percentile = 0.5, allowSplit = false, 
 
 
 export const __private__ = {
-    intervalWidth,
-    intervalCount,
-    intervalsWidth,
-    intervalsCount,
-    removeSubInterval,
-    removeSubIntervals,
     halfSampleModeInterval
 };
 
 export default {
     // contiguousShortestInterval,
+    intervalWidth,
+    intervalCount,
+    intervalsWidth,
+    intervalsCount,
+    subtractInterval,
+    subtractIntervals,
+    intersectIntervals,
+    unionInterval,
+    unionIntervals,
     shortestIntervalsWithin,
     shortestIntervals,
 };

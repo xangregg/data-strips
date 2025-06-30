@@ -213,9 +213,9 @@
     <!-- Outlier Rule Row -->
     <label>Outliers:</label>
     <div class="input-slider span-2-4">
-        <input type="number" id="expected-count-input" min="0" max="2" step="0.01" value="0.33">
-        <input type="range" id="expected-count-slider" min="0" max="2" step="0.01" value="0.33"
-               title="Roughly, portion of density tails to be considered outliers">
+        <input type="number" id="outlier-sensitivity-input" min="0" max="0.2" step="0.01" value="0.05">
+        <input type="range" id="outlier-sensitivity-slider" min="0" max="0.2" step="0.01" value="0.05"
+               title="Sensitivity of Grubbs' outlier detection">
     </div>
     <div></div>
     <div></div>
@@ -226,8 +226,8 @@
 
     <label>Split Penalty</label>
     <div class="input-slider span-2-4">
-        <input type="number" id="splitPenaltyInput" min="0" max="0.5" step="0.01" value="0.1">
-        <input type="range" id="splitPenalty" min="0" max="0.5" step="0.01" value="0.1"
+        <input type="number" id="splitPenaltyInput" min="0" max="0.5" step="0.01" value="0.15">
+        <input type="range" id="splitPenalty" min="0" max="0.5" step="0.01" value="0.15"
                title="Penalty factor for splitting into multiple intervals">
     </div>
     <label>Random Seed</label>
@@ -240,7 +240,7 @@
 </div>
 
 
-<svg id="plot" width="900" height="580"></svg>
+<svg id="plot" width="1000" height="580"></svg>
 <div id="description" class="span-descr">
 </div>
 </body>
