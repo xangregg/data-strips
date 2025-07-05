@@ -1018,7 +1018,10 @@ function generateGroupData({dist, mean, std, count}, seed) {
             generator = d3.randomCauchy.source(rng)(mean, std);
             break;
         case 'binomial':
-            generator = d3.randomBinomial.source(rng)(25, (mean + std) / 20);
+            generator = d3.randomBinomial.source(rng)(mean * 25, (std) / 3);
+            break;
+        case 'poisson':
+            generator = d3.randomPoisson.source(rng)(mean);
             break;
         default:
             generator = () => mean;
