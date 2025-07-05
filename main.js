@@ -291,18 +291,23 @@ function grubbsRangeFromIntervals(sorted, centralInterval, spreadInterval, alpha
     }
 
     const spreadP = nSpread / n;
-    const spreadWidth = SI.intervalWidth(sorted, spreadInterval);
+    // const spreadWidth = SI.intervalWidth(sorted, spreadInterval);
     // use midrange: expecting central interval to be narrow,
     // and expecting midrange to be more stable than mean or median for tiny n
-    let centralEstimate = (sorted[centralInterval[0]] + sorted[centralInterval[1]])/2;
+    // let centralEstimate = (sorted[centralInterval[0]] + sorted[centralInterval[1]])/2;
+    // console.log(trimean, centralEstimate, sorted[spreadInterval[0]], sorted[spreadInterval[1]]);
+    // // constrain central estimate is to somewhat central within the spread region;
+    // // half-sample mode, in particular, can be at the edge
+    // let minCentralEstimate = sorted[spreadInterval[0]] + spreadWidth * 0.1;
+    // let maxCentralEstimate = sorted[spreadInterval[0]] + spreadWidth * 0.9;
+    // centralEstimate = Math.min(centralEstimate, maxCentralEstimate);
+    // centralEstimate = Math.max(centralEstimate, minCentralEstimate);
 
-    // constrain central estimate is to somewhat central within the spread region;
-    // half-sample mode, in particular, can be at the edge
-    let minCentralEstimate = sorted[spreadInterval[0]] + spreadWidth * 0.1;
-    let maxCentralEstimate = sorted[spreadInterval[0]] + spreadWidth * 0.9;
-    centralEstimate = Math.min(centralEstimate, maxCentralEstimate);
-    centralEstimate = Math.max(centralEstimate, minCentralEstimate);
+    // use Tukey trimean as centralEstimate; avoids edge cases with extreme skew
+    const trimean = (sorted[spreadInterval[0]] + sorted[centralInterval[0]] + sorted[centralInterval[1]] + sorted[spreadInterval[1]])/4; // Tukey's trimean
+    const centralEstimate = trimean;
     const nCentral = SI.intervalCount(centralInterval);
+    // possibly these should account for new centralEstimate
     const nLower = nCentral / 2 + centralInterval[0];
     const nUpper = nCentral / 2 + n - 1 - centralInterval[1];
 
@@ -327,13 +332,11 @@ function grubbsRangeFromQuartiles(sorted, median, q1, q3, alpha) {
 
     const spreadP = 0.5;
     const spreadWidth = q3 - q1;
-    let centralEstimate = median;
-
-    // constrain central estimate is to somewhat central within the spread region;
-    let minCentralEstimate = q1 + spreadWidth * 0.1;
-    let maxCentralEstimate = q1 + spreadWidth * 0.9;
-    centralEstimate = Math.min(centralEstimate, maxCentralEstimate);
-    centralEstimate = Math.max(centralEstimate, minCentralEstimate);
+    // Tukey: "Another thing that box-and-whisker plots convey to us is an impression of
+    // location or centering that combines both median and hinges. The arithmetic
+    // that comes closest to matching this impression is probably the trimean"
+    const trimean = (q1 + 2 * median + q3) / 4; //
+    const centralEstimate = trimean;
     const nLower = n/4;
     const nUpper = n/4;
 
@@ -498,7 +501,7 @@ function drawBoxPlot(sorted, y, height, plotInfo) {
     const upWhisker = extendUpper ? outlierBand[1] : boxPlotStats.upperWhisker;
     if (extendLower) {
         // Curved adaptive outlier caps
-        const cw = capHeight / 5;
+        const cw = capHeight / 4;
         const ch = capHeight / 2;
         const x = xScale(loWhisker);
         const leftCurve = `M${x + cw},${ym - ch} 
@@ -520,7 +523,7 @@ function drawBoxPlot(sorted, y, height, plotInfo) {
     }
     if (extendUpper) {
         // Curved adaptive outlier caps
-        const cw = capHeight / 5;
+        const cw = capHeight / 4;
         const ch = capHeight / 2;
         const x = xScale(upWhisker);
         const curve = `M${x - cw},${ym - ch} 
@@ -1007,8 +1010,9 @@ function generateGroupData({dist, mean, std, count}, seed) {
         default:
             generator = () => mean;
     }
-    const raw = dist === 'old faithful'
-        ? Data.oldFaithful
+    const raw = dist === 'old faithful' ? Data.oldFaithful
+        : dist === 'volcano' ? Data.volcano
+            : dist === 'counties' ? Data.michiganCounties
         : d3.range(count).map(generator);
 
     // Normalize to fit xDomain
@@ -1017,7 +1021,7 @@ function generateGroupData({dist, mean, std, count}, seed) {
 
     const normalized = raw.map(d => xMin + ((d - min) / ((max - min) || 1)) * (xMax - xMin));
 
-    const needsNormalization = ['cauchy', 'binomial', 'old faithful'].includes(dist);
+    const needsNormalization = min < xMin || max > xMax; //['cauchy', 'binomial', 'old faithful', 'volcano', 'counties'].includes(dist);
     return needsNormalization ? normalized : raw;
 }
 
