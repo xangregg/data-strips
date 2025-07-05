@@ -72,14 +72,14 @@ const rowPlots = [
     },
     {
         label: 'HDR 33/67/Grubbs', height: 1.0, draw: drawDensityBands, color: '#238b45',
-        levels: [1/3, 2/3, 1.0],
+        levels: [1 / 3, 2 / 3, 1.0],
         description: `Highest Density Regions plot with cut-off points at 1/3, 2/3,
          and using Grubbs' outlier threshold after estimating the mean and SD from the 1/3 and 2/3 region.
          Values beyond the outlier threshold are shown as dots.`
     },
     {
         label: 'Shortest Thirds', height: 1.0, draw: drawDensityBands, color: '#238b45',
-        levels: [1/3, 2/3, 1.0],
+        levels: [1 / 3, 2 / 3, 1.0],
         description: `Shortest regions that contain 1/3 and 2/3 of the values.
          The widest interval shows Grubbs' outlier threshold after estimating the mean and SD from the shortest regions.
          Values beyond the outlier threshold are shown as dots.
@@ -127,7 +127,7 @@ const rowPlots = [
     },
     // {
     //     label: 'IQR and Median', height: 1.0, draw: drawDensityBands, color: '#238b45',
-    //     levels: [0, 0.5, 0.993], //  only used for coloring, box plot quantiles are used instead
+    //     levels: [0, 0.5, 0.993], // only used for coloring, box plot quantiles are used instead
     //     description: `Inner region shows Interquartile Range (IQR) of the data with a line at the median.
     //      The outer interval extends to an adaptive outlier threshold based on a gaussian extrapolation of the IQR region.
     //      Values beyond the outer interval are shown as dots.`
@@ -233,19 +233,19 @@ function scaleFactorForPercentile(p, df) {
 function estimateSDFromShortest(n, p, w) {
     const df = n - 1;
     const tw = w / 2;   // assume a centered interval
-    const t = jStat.studentt.inv(0.5 + p/2, df);
+    const t = jStat.studentt.inv(0.5 + p / 2, df);
     return tw / t;
 }
 
 // https://www.qualitydigest.com/inside/statistics-column/some-outlier-tests-part-2-011121.html
 function grubbsG(n, alpha) {
     if (n <= 3)
-        return 1;   // undefined, but show as 1sd if asked
+        return 1;   // undefined, but show as 1 sd if asked
     const df = n - 2;
     const upperTailArea = alpha / (2 * n);
     const t = jStat.studentt.inv(1 - upperTailArea, df);
     const tt = t * t;
-    const gg = (n - 1) * (n - 1)  * tt / (n * (n - 2 + tt));
+    const gg = (n - 1) * (n - 1) * tt / (n * (n - 2 + tt));
     return Math.sqrt(gg);
 }
 
@@ -259,7 +259,7 @@ function grubbsUpper(m, sd, n, alpha) {
 
 function grubbsHalfWidth(nHalf, pHalf, wHalf, alpha) {
     // pretend this is one half of a symmetric t distribution
-    const sd = estimateSDFromShortest(nHalf * 2,  pHalf * 2, 2 * wHalf);
+    const sd = estimateSDFromShortest(nHalf * 2, pHalf * 2, 2 * wHalf);
     return sd * grubbsG(nHalf * 2, alpha);
 }
 
@@ -277,7 +277,7 @@ function grubbsRangeFromIntervals(sorted, centralInterval, spreadInterval, alpha
     if (nSpread === n) {
         return [sorted[spreadInterval[0]], sorted[spreadInterval[1]]];
     }
-    
+
     if (centralInterval === null) {
         const spreadMiddle = (spreadInterval[0] + spreadInterval[1]) / 2;
         let [lo, hi] = [Math.floor(spreadMiddle), Math.ceil(spreadMiddle)];
@@ -304,7 +304,7 @@ function grubbsRangeFromIntervals(sorted, centralInterval, spreadInterval, alpha
     // centralEstimate = Math.max(centralEstimate, minCentralEstimate);
 
     // use Tukey trimean as centralEstimate; avoids edge cases with extreme skew
-    const trimean = (sorted[spreadInterval[0]] + sorted[centralInterval[0]] + sorted[centralInterval[1]] + sorted[spreadInterval[1]])/4; // Tukey's trimean
+    const trimean = (sorted[spreadInterval[0]] + sorted[centralInterval[0]] + sorted[centralInterval[1]] + sorted[spreadInterval[1]]) / 4; // Tukey's trimean
     const centralEstimate = trimean;
     const nCentral = SI.intervalCount(centralInterval);
     // possibly these should account for new centralEstimate
@@ -324,21 +324,21 @@ function grubbsRangeFromQuartiles(sorted, median, q1, q3, alpha) {
         return null;
     if (n === 1)
         return [[sorted[0], sorted[0]]];
-    const nSpread = n/2;    // in theory
+    // const nSpread = n / 2;    // in theory
     // if (nSpread <= 2) {
     //     // tiny intervals (even count==1) can happen from HDR
     //     return [sorted[spreadInterval[0]], sorted[spreadInterval[1]]];
     // }
 
     const spreadP = 0.5;
-    const spreadWidth = q3 - q1;
+    // const spreadWidth = q3 - q1;
     // Tukey: "Another thing that box-and-whisker plots convey to us is an impression of
     // location or centering that combines both median and hinges. The arithmetic
     // that comes closest to matching this impression is probably the trimean"
     const trimean = (q1 + 2 * median + q3) / 4; //
     const centralEstimate = trimean;
-    const nLower = n/4;
-    const nUpper = n/4;
+    const nLower = n / 4;
+    const nUpper = n / 4;
 
     const [xLower, xUpper] = [q1, q3];
     const grubbsLowerFromInterval = Math.min(q1, centralEstimate - grubbsHalfWidth(nLower, spreadP / 2, centralEstimate - xLower, alpha));
@@ -422,7 +422,7 @@ function extrapolatedGaussianRange1(sorted, centralP, centralBand, centralEstima
     const spread = x1 - x0;
     if (spread === 0)
         return [x0, x1];
-    const centerPadding = spread * 0.25;  // avoid singularities for center at edge
+    const centerPadding = spread * 0.25;  // avoid singularities for center is at an edge
     const center = Math.max(x0 + centerPadding, Math.min(x1 - centerPadding, centralEstimate));
     const leftSpread = center - x0;
     const rightSpread = x1 - center;
@@ -489,12 +489,16 @@ function computeBoxPlotStats(sorted) {
 function drawBoxPlot(sorted, y, height, plotInfo) {
     const capHeight = height * 2 / 3;
     const ym = y + height / 2;
-    const medianInterval = [Math.floor((sorted.length - 1) / 2), Math.ceil((sorted.length - 1) / 2)];
-    const iqrInterval = [d3.bisectLeft(sorted, boxPlotStats.q1), d3.bisectRight(sorted, boxPlotStats.q3) - 1];
-    let outlierBand = !plotInfo.label.includes('Tukey')
-        ? grubbsRangeFromQuartiles(sorted, boxPlotStats.median, boxPlotStats.q1, boxPlotStats.q3, getControlValues().outlierAlpha)
-        // ? extrapolatedGaussianRange(sorted, 0.5, [[boxPlotStats.q1, boxPlotStats.q3]], boxPlotStats.median, expectedOutlierCount)
-        : null;
+    // const medianInterval = [Math.floor((sorted.length - 1) / 2), Math.ceil((sorted.length - 1) / 2)];
+    // const iqrInterval = [d3.bisectLeft(sorted, boxPlotStats.q1), d3.bisectRight(sorted, boxPlotStats.q3) - 1];
+    let outlierBand = null;
+    if (!plotInfo.label.includes('Tukey')) {
+        outlierBand = grubbsRangeFromQuartiles(sorted, boxPlotStats.median, boxPlotStats.q1, boxPlotStats.q3, getControlValues().outlierAlpha);
+        //outlierBand = extrapolatedGaussianRange(sorted, 0.5, [[boxPlotStats.q1, boxPlotStats.q3]], boxPlotStats.median, expectedOutlierCount);
+        // snap to data value
+        outlierBand = [sorted[d3.bisectLeft(sorted, outlierBand[0])], sorted[d3.bisectRight(sorted, outlierBand[1]) - 1]];
+    }
+
     const extendLower = outlierBand && outlierBand[0] < boxPlotStats.lowerWhisker;
     const extendUpper = outlierBand && outlierBand[1] > boxPlotStats.upperWhisker;
     const loWhisker = extendLower ? outlierBand[0] : boxPlotStats.lowerWhisker;
@@ -512,7 +516,8 @@ function drawBoxPlot(sorted, y, height, plotInfo) {
             .attr("fill", "none")
             .attr("stroke", plotInfo.color)
             .attr("stroke-width", 1);
-    } else {
+    }
+    else {
         // IQR Caps
         svg.append('line')
             .attr('x1', xScale(boxPlotStats.lowerWhisker))
@@ -534,7 +539,8 @@ function drawBoxPlot(sorted, y, height, plotInfo) {
             .attr("fill", "none")
             .attr("stroke", plotInfo.color)
             .attr("stroke-width", 1);
-    } else {
+    }
+    else {
         // IQR Caps
         svg.append('line')
             .attr('x1', xScale(boxPlotStats.upperWhisker))
@@ -544,7 +550,7 @@ function drawBoxPlot(sorted, y, height, plotInfo) {
             .attr('stroke', plotInfo.color);
 
     }
-    // Whiskers
+// Whiskers
     svg.append('line')
         .attr('x1', xScale(loWhisker))
         .attr('x2', xScale(boxPlotStats.q1))
@@ -558,7 +564,7 @@ function drawBoxPlot(sorted, y, height, plotInfo) {
         .attr('y2', ym)
         .attr('stroke', plotInfo.color);
 
-    // Box
+// Box
     svg.append('rect')
         .attr('x', xScale(boxPlotStats.q1))
         .attr('y', y)
@@ -567,7 +573,7 @@ function drawBoxPlot(sorted, y, height, plotInfo) {
         .attr('fill', d3.interpolateLab('white', plotInfo.color)(0.1))
         .attr('stroke', plotInfo.color);
 
-    // Median line
+// Median line
     svg.append('line')
         .attr('x1', xScale(boxPlotStats.median))
         .attr('x2', xScale(boxPlotStats.median))
@@ -761,7 +767,8 @@ function drawQuasiOutlierBands(bands, y, height, color) {
                     .attr("stroke", color)
                     .attr("stroke-width", 4);
             }
-        } else if (option === "zig") {
+        }
+        else if (option === "zig") {
             let y1 = y;
             let y2 = y + height;
             let g = svg.append("g");
@@ -775,7 +782,8 @@ function drawQuasiOutlierBands(bands, y, height, color) {
                     .attr("stroke-width", 2);
                 [y1, y2] = [y2, y1];
             }
-        } else if (option === "vert") {
+        }
+        else if (option === "vert") {
             for (let x = xScale(band[0]); x < xScale(band[1]); x += 4) {
                 svg.append("line")
                     .attr("x1", x)
@@ -785,14 +793,16 @@ function drawQuasiOutlierBands(bands, y, height, color) {
                     .attr("stroke", color)
                     .attr("stroke-width", 2);
             }
-        } else if (option === "medium") {
+        }
+        else if (option === "medium") {
             svg.append("rect")
                 .attr("x", xScale(band[0]))
                 .attr("y", y + height * 0.2)
                 .attr("width", xScale(band[1]) - xScale(band[0]))
                 .attr("height", height - height * 0.2 * 2)
                 .style("fill", color)
-        } else if (option === "thin") {
+        }
+        else if (option === "thin") {
             svg.append("rect")
                 .attr("x", xScale(band[0]))
                 .attr("y", y + height * 0.3)
@@ -847,7 +857,8 @@ function drawDensityBands(sorted, y, height, plotInfo) {
         bandsMap.set(percentiles[0], [outlierBands[0]]);
         bandsMap.set(percentiles[1], [[boxPlotStats.q1, boxPlotStats.q3]]);
         bandsMap.set(percentiles[2], [[boxPlotStats.median, boxPlotStats.median]]);
-    } else {
+    }
+    else {
         if (useOutlierThreshold) {
             // for Grubbs' outliers, the spread interval is the widest interval <= 95%
             // and the central interval is the next narrower one
@@ -886,7 +897,8 @@ function drawDensityBands(sorted, y, height, plotInfo) {
                 else {
                     bands = hdrBands;
                 }
-            } else {
+            }
+            else {
                 const allowSplit = getAllowSplit(p);
                 const intervals = SI.shortestIntervalsWithin(sorted, withinIntervals, p, allowSplit, getControlValues().splitPenalty);
                 for (const [first, last] of intervals) {
@@ -933,7 +945,8 @@ function drawDensityBands(sorted, y, height, plotInfo) {
                     // extend current band
                     curRugBand[1] = x;
                     continue;
-                } else if (curRugBand) {
+                }
+                else if (curRugBand) {
                     // commit band and start a new one
                     rugBands.push(curRugBand);
                     curRugBand = null;
@@ -953,8 +966,8 @@ function drawDensityBands(sorted, y, height, plotInfo) {
     drawOutliers(outliers, sorted, y, height, plotInfo, colors[0]);
     // if (useOutlierThreshold) {
     //     drawQuasiOutlierBands(outlierBands, y + height/2, 2, 'red');
-        // drawBandOrSliver(outlierBand[0], outlierBand[0], y - 2, height + 4, 'red');
-        // drawBandOrSliver(outlierBand[1], outlierBand[1], y - 2, height + 4, 'red');
+    // drawBandOrSliver(outlierBand[0], outlierBand[0], y - 2, height + 4, 'red');
+    // drawBandOrSliver(outlierBand[1], outlierBand[1], y - 2, height + 4, 'red');
     // }
 }
 
@@ -1013,7 +1026,7 @@ function generateGroupData({dist, mean, std, count}, seed) {
     const raw = dist === 'old faithful' ? Data.oldFaithful
         : dist === 'volcano' ? Data.volcano
             : dist === 'counties' ? Data.michiganCounties
-        : d3.range(count).map(generator);
+                : d3.range(count).map(generator);
 
     // Normalize to fit xDomain
     const [min, max] = d3.extent(raw);
@@ -1083,7 +1096,7 @@ function addChangeListener(id, callback) {
 //     });
 // });
 
-svg.on("mousemove", function(event) {
+svg.on("mousemove", function (event) {
     const descriptionBox = d3.select("#description");
     const mouseY = d3.pointer(event)[1]; // Get the vertical mouse position
     let rowTop = rowPlotTop;
