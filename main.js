@@ -240,7 +240,7 @@ function estimateSDFromShortest(n, p, w) {
 // https://www.qualitydigest.com/inside/statistics-column/some-outlier-tests-part-2-011121.html
 function grubbsG(n, alpha) {
     if (n <= 3)
-        return 0;
+        return 1;   // undefined, but show as 1sd if asked
     const df = n - 2;
     const upperTailArea = alpha / (2 * n);
     const t = jStat.studentt.inv(1 - upperTailArea, df);
@@ -312,6 +312,37 @@ function grubbsRangeFromIntervals(sorted, centralInterval, spreadInterval, alpha
     return [grubbsLowerFromInterval, grubbsUpperFromInterval];
 }
 
+
+function grubbsRangeFromQuartiles(sorted, median, q1, q3, alpha) {
+    const n = sorted.length;
+    if (n === 0)
+        return null;
+    if (n === 1)
+        return [[sorted[0], sorted[0]]];
+    const nSpread = n/2;    // in theory
+    // if (nSpread <= 2) {
+    //     // tiny intervals (even count==1) can happen from HDR
+    //     return [sorted[spreadInterval[0]], sorted[spreadInterval[1]]];
+    // }
+
+    const spreadP = 0.5;
+    const spreadWidth = q3 - q1;
+    let centralEstimate = median;
+
+    // constrain central estimate is to somewhat central within the spread region;
+    let minCentralEstimate = q1 + spreadWidth * 0.1;
+    let maxCentralEstimate = q1 + spreadWidth * 0.9;
+    centralEstimate = Math.min(centralEstimate, maxCentralEstimate);
+    centralEstimate = Math.max(centralEstimate, minCentralEstimate);
+    const nLower = n/4;
+    const nUpper = n/4;
+
+    const [xLower, xUpper] = [q1, q3];
+    const grubbsLowerFromInterval = Math.min(q1, centralEstimate - grubbsHalfWidth(nLower, spreadP / 2, centralEstimate - xLower, alpha));
+    const grubbsUpperFromInterval = Math.max(q3, centralEstimate + grubbsHalfWidth(nUpper, spreadP / 2, xUpper - centralEstimate, alpha));
+    return [Math.max(grubbsLowerFromInterval, sorted[0]), Math.min(grubbsUpperFromInterval, sorted[n - 1])];
+}
+
 function offsetInterval(interval, offset) {
     if (!interval) {
         return interval;
@@ -340,9 +371,9 @@ function sliceSorted(sorted, centralInterval, spreadInterval, first, last) {
 function grubbsRangesFromShortest(sorted, centralIntervals, spreadIntervals, alpha = 0.5) {
     const n = sorted.length;
     if (n === 0)
-        return null;
+        return [];
     if (n === 1)
-        return [sorted[0], sorted[0]];
+        return [[sorted[0], sorted[0]]];
 
     let outlierBands = [];
     let splits = [0, n];
@@ -455,10 +486,10 @@ function computeBoxPlotStats(sorted) {
 function drawBoxPlot(sorted, y, height, plotInfo) {
     const capHeight = height * 2 / 3;
     const ym = y + height / 2;
-    const medianInterval = [Math.floor(sorted.length / 2), Math.ceil(sorted.length / 2)];
+    const medianInterval = [Math.floor((sorted.length - 1) / 2), Math.ceil((sorted.length - 1) / 2)];
     const iqrInterval = [d3.bisectLeft(sorted, boxPlotStats.q1), d3.bisectRight(sorted, boxPlotStats.q3) - 1];
     let outlierBand = !plotInfo.label.includes('Tukey')
-        ? grubbsRangeFromShortest(sorted, [medianInterval], [iqrInterval], getControlValues().outlierAlpha)
+        ? grubbsRangeFromQuartiles(sorted, boxPlotStats.median, boxPlotStats.q1, boxPlotStats.q3, getControlValues().outlierAlpha)
         // ? extrapolatedGaussianRange(sorted, 0.5, [[boxPlotStats.q1, boxPlotStats.q3]], boxPlotStats.median, expectedOutlierCount)
         : null;
     const extendLower = outlierBand && outlierBand[0] < boxPlotStats.lowerWhisker;
@@ -598,15 +629,19 @@ function epanechnikov(bandwidth) {
 }
 
 function silvermanBandwidth(data) {
-    const stdDev = d3.deviation(data);
     const n = data.length;
+    if (n <= 1)
+        return 1;
+    const stdDev = d3.deviation(data);
     return 1.06 * stdDev * Math.pow(n, -1 / 5);
 }
 
 function dataDensity(sorted, bandwidthScale = 1.0, nSubIntervals = 100, pad = 0.05) {
     // Estimate density, can use a smaller bandwidth that default for diagnostic use
     const [dataMin, dataMax] = d3.extent(sorted);
-    const dataWidth = dataMax - dataMin;
+    let dataWidth = dataMax - dataMin;
+    if (dataWidth === 0)
+        dataWidth = 0.5;
     const kernelMin = dataMin - dataWidth * pad;
     const kernelMax = dataMax + dataWidth * pad;
     const bandwidth = silvermanBandwidth(sorted) * bandwidthScale;

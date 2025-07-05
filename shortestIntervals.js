@@ -20,7 +20,7 @@ function intervalWidth(sorted, firstLast) {
 }
 
 function intervalCount(firstLast) {
-    return firstLast === null || firstLast[1] <= firstLast[0] ? 0 : firstLast[1] - firstLast[0] + 1;
+    return firstLast === null || firstLast[1] < firstLast[0] ? 0 : firstLast[1] - firstLast[0] + 1;
 }
 
 function intervalsWidth(sorted, intervals) {

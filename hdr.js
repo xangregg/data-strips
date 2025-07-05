@@ -41,6 +41,9 @@ export function extractHDRBands(kde, threshold) {
     if (start !== null) {
         bands.push([kde[start].x, kde[kde.length - 1].x]);
     }
+    if (bands.length === 0) {
+        bands.push([kde[0].x, kde[kde.length - 1].x]);
+    }
     return bands;
 }
 
