@@ -1033,7 +1033,10 @@ function generateGroupData({dist, mean, std, count}, seed) {
 
     // Normalize to fit xDomain
     const [min, max] = d3.extent(raw);
-    const [xMin, xMax] = xDomain;
+    let [xMin, xMax] = xDomain;
+    const xRange = xMax - xMin;
+    xMin += xRange * 0.05;
+    xMax -= xRange * 0.05;
 
     const normalized = raw.map(d => xMin + ((d - min) / ((max - min) || 1)) * (xMax - xMin));
 
