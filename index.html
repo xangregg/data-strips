@@ -23,6 +23,22 @@
             width: 100%;
         }
 
+        .intro {
+            margin-top: 10px;
+            margin-left: 20px;
+            margin-right: 50px;
+            font-size: 17px;
+            font-family: sans-serif;
+        }
+
+        .intro2 {
+            margin-top: 0px;
+            margin-left: 20px;
+            margin-right: 50px;
+            font-size: 17px;
+            font-family: sans-serif;
+        }
+
         .row-label {
             font-size: 18px;
             font-family: sans-serif;
@@ -150,6 +166,17 @@
 
 <body>
 
+<div>
+    <p class="intro">Compare new and old <em>data strip</em> views.
+        <a href="https://rawdatastudies.com/2025/07/05/data-strips-experiment/">Details in blog post</a>.
+        <span style="color: #238b45">New strips</span> show:</p>
+        <ul>
+    <li class="intro2">Shortest Half (Shorth) intervals for central spread, with one split allowed </li>
+    <li class="intro2">Half-sample mode for central estimate</li>
+    <li class="intro2"><a href="https://en.wikipedia.org/wiki/Grubbs%27s_test">Grubbs's outlier threshold</a>, to adapt to data size</li>
+    <li class="intro2">Asymmetric outlier threshold, when central estimate is not centered in central spread</li>
+</ul>
+</div>
 <div id="controls">
     <div></div>
     <label>Distribution</label>
