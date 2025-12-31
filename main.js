@@ -38,44 +38,52 @@ const rowPlots = [
     {
         label: 'Heatmap', height: 1.0, draw: drawHeatmapPlot, color: '#2171b5',
         levels: [15], // number of intervals
-        description: `Heatmap of fixed-sized intervals colored by relative count.
-         When grouped, one must decide if the count scale is the same for all of them.
-         Intervals with few values (2 or less) also show those values as dots.`
+        description: `Heatmap of 15 fixed-sized intervals colored by relative count,
+        constrained to not use dark colors for uniform bin counts.
+        When grouped, one must decide if the count scale is the same for all of them.
+        Intervals with few values (2 or less) also show those values as dots.`
     },
     {
         label: 'KDE', height: 1.4, draw: drawKDEs, color: '#999',
         levels: [0.25, 0.5, 1.0],   // bandwidth multipliers
-        description: `Kernel Density Estimation using a gaussian kernel and multiple bandwidths.`
+        description: `Kernel Density Estimation using a gaussian kernel and multiple bandwidths.
+        Bandwidths are 0.25, 0.5, and 1.0 times the Silverman's rule bandwidth, which is based on
+        the standard deviation and sample size of the data.`
     },
     {
         label: 'Rug', height: 0.4, draw: drawRug, color: '#333',
         levels: [],
-        description: `Rug plot with a vertical line at each data point.`
+        description: `Rug plot with a vertical line at each data point. Some data points may
+        be hidden behind other data points due to overlap.`
     },
     {
         label: 'Density Strip', height: 1.0, draw: drawStripPlot, color: '#444',
         levels: [0.5],  // kde bandwidth multiplier
-        description: `Kernel Density Estimation using color and a bandwidth multiplier of 50%.`
+        description: `Kernel Density Estimation using color and a bandwidth of 0.5 times
+         the Silverman's rule bandwidth, which is based on the standard deviation and sample size of the data.`
     },
     {
         label: 'HDR 50/95/99', height: 1.0, draw: drawDensityBands, color: '#2171b5',
         levels: [0.0, 0.5, 0.95, 0.99],
         description: `Highest Density Regions plot with cut-off points at mode, 0.5, 0.95, and 0.99.
-        Values beyond the widest region are shown as outlier dots.`
+        Values beyond the widest region are shown as outlier dots.
+        Uses a KDE bandwidth of 0.5 times the Silverman's rule bandwidth.`
     },
     {
-        label: 'HDR 50/90/Grubbs', height: 1.0, draw: drawDensityBands, color: '#238b45',
-        levels: [0.0, 0.5, 0.90, 1.0],
-        description: `Highest Density Regions plot with cut-off points at mode, 0.5, 0.9,
+        label: 'HDR 5/50/90', height: 1.0, draw: drawDensityBands, color: '#238b45',
+        levels: [0.05, 0.5, 0.90, 1.0],
+        description: `Highest Density Regions plot with cut-off points at 0.05, 0.5, 0.9,
          and using Grubbs' outlier threshold after estimating the mean and SD from the 50% and 90% regions.
-         Values beyond the outlier threshold are shown as dots.`
+         Values beyond the outlier threshold are shown as dots.
+         Uses a KDE bandwidth of 0.5 times the Silverman's rule bandwidth.`
     },
     {
-        label: 'HDR 33/67/Grubbs', height: 1.0, draw: drawDensityBands, color: '#238b45',
+        label: 'HDR 33/67', height: 1.0, draw: drawDensityBands, color: '#238b45',
         levels: [1 / 3, 2 / 3, 1.0],
         description: `Highest Density Regions plot with cut-off points at 1/3, 2/3,
          and using Grubbs' outlier threshold after estimating the mean and SD from the 1/3 and 2/3 region.
-         Values beyond the outlier threshold are shown as dots.`
+         Values beyond the outlier threshold are shown as dots.
+         Uses a KDE bandwidth of 0.5 times the Silverman's rule bandwidth.`
     },
     {
         label: 'Shortest Thirds', height: 1.0, draw: drawDensityBands, color: '#238b45',
@@ -103,9 +111,9 @@ const rowPlots = [
     //     description: 'Shortest regions of 25%, 50%, and 95% of the data, allowing for split regions penalized according to the Split Penalty.'
     // },
     {
-        label: 'Equal Gaussian', height: 1.0, draw: drawDensityBands, color: '#238b45',
+        label: 'Shortest Gaussian', height: 1.0, draw: drawDensityBands, color: '#238b45',
         levels: [0.5, 1.5, 2.5],
-        description: `Quantile regions at percentiles that correspond to equal intervals if the data is Gaussian.
+        description: `Shortest regions at percentiles that correspond to equal intervals if the data is Gaussian.
          For Gaussian data, each region would be one standard deviation wide.
          A Grubbs' outlier threshold after estimating the mean and SD from the shortest regions.
          Values beyond the outlier threshold are shown as dots.
@@ -132,6 +140,26 @@ const rowPlots = [
     //      The outer interval extends to an adaptive outlier threshold based on a gaussian extrapolation of the IQR region.
     //      Values beyond the outer interval are shown as dots.`
     // },
+    // {
+    //     label: 'Quintile Box', height: 0.8, draw: drawQuintileBoxPlot, color: '#238b45', // light green '#D6E8D8'
+    //     levels: [0, 0.5, 0.993], //  only used for coloring, quintiles are used instead
+    //     description: `Five boxes each representing a quintile of the data.
+    //      `
+    // },
+    {
+        label: 'Quintile Area', height: 0.8, draw: drawQuantileAreaBoxPlot, color: '#238b45', // light green '#D6E8D8'
+        levels: [5],
+        description: `Five boxes, each representing a quintile of the data.
+         Box heights are proportional to the number of data density in the quintile
+         (clamped to upper and lower limits), making the box areas equal (except for clamped heights).`
+    },
+    {
+        label: 'Quartile Area', height: 0.8, draw: drawQuantileAreaBoxPlot, color: '#238b45', // light green '#D6E8D8'
+        levels: [4],
+        description: `Five boxes, each representing a quartile of the data.
+         Box heights are proportional to the number of data density in the quartile
+         (clamped to upper and lower limits), making the box areas equal (except for clamped heights).`
+    },
     {
         label: 'Grubbs Box', height: 0.8, draw: drawBoxPlot, color: '#238b45', // light green '#D6E8D8'
         levels: [0, 0.5, 0.993], //  only used for coloring, box plot quantiles are used instead
@@ -588,6 +616,144 @@ function drawBoxPlot(sorted, y, height, plotInfo) {
     drawOutliers(outliers, sorted, y, height, plotInfo, d3.interpolateLab('white', plotInfo.color)(0.8));
 }
 
+function computeQuantileIntervals(sorted, pLo, pHi) {
+    const qLo = d3.quantileSorted(sorted, pLo);
+    const qHi = d3.quantileSorted(sorted, pHi);
+    const qLoIndex = d3.bisectLeft(sorted, qLo);
+    const qHiIndex = d3.bisectRight(sorted, qHi) - 1;
+    return [qLoIndex, qHiIndex];
+    // return [sorted[qLoIndex], sorted[qHiIndex]];
+}
+
+function computeQuantileBoxPlotStats(sorted, nQuantiles) {
+    const quantileIntervals = Array.from({length: nQuantiles},
+        (_, i) => computeQuantileIntervals(sorted, (i)/ nQuantiles, (i + 1)/ nQuantiles));
+
+    // let quantileIntervals = quantiles.map(level => computeQuantileIntervals(sorted, level - 0.2, level));
+    return quantileIntervals;
+}
+
+function drawQuintileBoxPlot(sorted, y, height, plotInfo) {
+    const ym = y + height / 2;
+    const xWidthMin = 3;
+    let yHeight = height * 0.95; // leave room for a median line to extend outside of box
+    const xGapMax = (xScale.range()[1] - xScale.range()[0]) * 0.1;
+    const pQuintiles = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
+    let xQuintiles = pQuintiles.map(p => xScale(d3.quantileSorted(sorted, p)));
+
+    let xLoPrev = 0;
+    let xHiPrev = 0;
+    let order = [2, 1, 3, 0, 4];
+    for (const i of order) {
+        let xLo = xQuintiles[i];
+        let xHi = xQuintiles[i + 1];
+        let qWidthMin = xLo === xHi ? 1 : xWidthMin;
+        // possibly xLo > xHi for the moment
+        if (i === 2) {
+            // middle interval
+            let xMid = (xLo + xHi) / 2;
+            xLo = Math.min(xLo, xMid - qWidthMin / 2);
+            xHi = Math.max(xHi, xMid + qWidthMin / 2);
+            xLoPrev = xLo;
+            xHiPrev = xHi;
+        }
+        else if (i < 2) {
+            // a lower interval
+            xHi = Math.min(xHi, xLoPrev);
+            xLo = Math.min(xLo, xHi - qWidthMin);
+            xLoPrev = xLo;
+        }
+        else {
+            // an upper interval
+            xLo = Math.max(xLo, xHiPrev);
+            xHi = Math.max(xHi, xLo + qWidthMin);
+            xHiPrev = xHi;
+        }
+        xQuintiles[i] = xLo;
+        xQuintiles[i + 1] = xHi;
+    }
+    svg.append('rect')
+        .attr('x', xLoPrev)
+        .attr('y', ym - yHeight/2)
+        .attr('width', xHiPrev - xLoPrev)
+        .attr('height', yHeight)
+        .attr('fill', d3.interpolateLab('white', plotInfo.color)(0.1))
+        .attr('stroke', plotInfo.color);
+    for (let i = 1; i < 5; i++) {
+        // todo: can we drawn lines and rect as one stoked path so joins are cleaner?
+        svg.append('line')
+            .attr('x1', xQuintiles[i])
+            .attr('x2', xQuintiles[i])
+            .attr('y1', ym - yHeight/2)
+            .attr('y2', ym + yHeight/2)
+            .attr('stroke', plotInfo.color);
+    }
+}
+
+function middleOutIndex(i, n) {
+    const m = Math.floor(n / 2);
+    const d = Math.ceil(i / 2);
+    return m + (i % 2 === 0 ? -d : d);
+}
+
+function drawQuantileAreaBoxPlot(sorted, y, height, plotInfo) {
+    const ym = y + height / 2;
+    const xGapMin = 0;
+    const xWidthMin = 3;
+    const heightMin = 2;
+    const denMaxScale = 3;
+    let xLoPrev = 0;
+    let xHiPrev = 0;
+    const nQuantiles = plotInfo.levels[0];
+    let quantileIntervals = computeQuantileBoxPlotStats(sorted, nQuantiles);
+    for (let io = 0; io < nQuantiles; io++) {
+        const iq = middleOutIndex(io, nQuantiles - 1);
+        let [lo, hi] = quantileIntervals[iq];
+        let dLo = sorted[lo];
+        let dHi = sorted[hi];
+        let nq = hi - lo + 1;
+        if (nq === 0)
+            continue;
+        let globalDen = sorted[sorted.length - 1] === sorted[0] ? 1000 : sorted.length / (sorted[sorted.length - 1] - sorted[0]);
+        let den = dHi === dLo ? globalDen * 1000 : nq / (dHi - dLo);
+        let maxDen = globalDen * denMaxScale;
+        let boxDen = Math.min(maxDen, den);
+        let xLo = xScale(dLo);
+        let xHi = xScale(dHi);
+        let yHeight = Math.max(heightMin, height * boxDen / maxDen);
+        let xMid = (xLo + xHi) / 2;
+        xLo += xGapMin / 2;
+        xHi -= xGapMin / 2;
+        // possibly xLo > xHi for the moment
+        if (io === 0) {
+            // middle interval
+            xLo = Math.min(xLo, xMid - xWidthMin / 2);
+            xHi = Math.max(xHi, xMid + xWidthMin / 2);
+            xLoPrev = xLo;
+            xHiPrev = xHi;
+        }
+        else if (iq < nQuantiles/2) {
+            // a lower interval
+            xHi = xGapMin === 0 ? xLoPrev : Math.min(xHi, xLoPrev - xGapMin);
+            xLo = Math.min(xLo, xHi - xWidthMin);
+            xLoPrev = xLo;
+        }
+        else {
+            // an upper interval
+            xLo = xGapMin === 0 ? xHiPrev : Math.max(xLo, xHiPrev + xGapMin);
+            xHi = Math.max(xHi, xLo + xWidthMin);
+            xHiPrev = xHi;
+        }
+        svg.append('rect')
+            .attr('x', xLo)
+            .attr('y', ym - yHeight/2)
+            .attr('width', xHi - xLo)
+            .attr('height', yHeight)
+            .attr('fill', d3.interpolateLab('white', plotInfo.color)(0.1))
+            .attr('stroke', plotInfo.color);
+    }
+}
+
 function drawKDE(svg, xScale, yScale, yTop, yHeight, density, color) {
     const area = d3.area()
         .curve(d3.curveBasis)
@@ -646,7 +812,7 @@ function silvermanBandwidth(data) {
 }
 
 function dataDensity(sorted, bandwidthScale = 1.0, nSubIntervals = 100, pad = 0.05) {
-    // Estimate density, can use a smaller bandwidth that default for diagnostic use
+    // Estimate density, can use a smaller bandwidth than default for diagnostic use
     const [dataMin, dataMax] = d3.extent(sorted);
     let dataWidth = dataMax - dataMin;
     if (dataWidth === 0)
@@ -683,7 +849,10 @@ function drawHeatmapPlot(sorted, y, height, plotInfo) {
         .domain(xScale.domain())
         .thresholds(numBins)(sorted);
 
-    const maxCount = d3.max(bins, d => d.length);
+    let maxCount = d3.max(bins, d => d.length);
+    let nNonEmpty = d3.sum(bins, d => (d.length !== 0));
+    if (nNonEmpty > 1)
+        maxCount = Math.max(maxCount, sorted.length / (nNonEmpty/2));
     const colorRamp = d3.interpolateLab('white', plotInfo.color);
 
     bins.forEach(bin => {
@@ -840,7 +1009,7 @@ function drawDensityBands(sorted, y, height, plotInfo) {
     // console.log(label, percentiles);
     let withinIntervals = [[0, sorted.length - 1]];
     const useOutlierThreshold = !plotInfo.label.includes('Rug') &&
-        !(plotInfo.label.includes('HDR') && !plotInfo.label.includes('Grubb'));
+        !(plotInfo.label.includes('HDR') && !plotInfo.label.includes('Grubb') && !plotInfo.description.includes('Grubb'));
     const hdrThresholds = plotInfo.label.includes('HDR') ? hdr.computeHDRRegions(hdrKDE, percentiles) : null;
 
     let outlierBands = [];
@@ -912,8 +1081,11 @@ function drawDensityBands(sorted, y, height, plotInfo) {
 
     function drawBands(i, p, bands, inset = 0) {
         let pcolor = colors[percentiles.length - i - 1];
-        if (p <= 0.02)
+        if (p <= 0.02 && i === percentiles.length - 1)
             pcolor = d3.color(pcolor).darker(1);
+        else if (p <= 0.1 && i === percentiles.length - 1)
+            pcolor = d3.color(pcolor).darker(0.5);
+
         for (const [x0, x1] of bands) {
             drawBandOrSliver(x0, x1, y + inset, height - inset * 2, pcolor);
         }
@@ -1029,6 +1201,8 @@ function generateGroupData({dist, mean, std, count}, seed) {
     const raw = dist === 'old faithful' ? Data.oldFaithful
         : dist === 'volcano' ? Data.volcano
             : dist === 'counties' ? Data.michiganCounties
+                : dist === 'bacteria a' ? Data.bacteriaPrecisionA
+                    : dist === 'bacteria b' ? Data.bacteriaPrecisionB
                 : d3.range(count).map(generator);
 
     // Normalize to fit xDomain
@@ -1040,7 +1214,8 @@ function generateGroupData({dist, mean, std, count}, seed) {
 
     const normalized = raw.map(d => xMin + ((d - min) / ((max - min) || 1)) * (xMax - xMin));
 
-    const needsNormalization = min < xMin || max > xMax; //['cauchy', 'binomial', 'old faithful', 'volcano', 'counties'].includes(dist);
+    const needsNormalization = min < xMin || max > xMax || (min >= 0 && max <= 1);
+    //['cauchy', 'binomial', 'old faithful', 'volcano', 'counties'].includes(dist);
     return needsNormalization ? normalized : raw;
 }
 
