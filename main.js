@@ -1203,6 +1203,7 @@ function generateGroupData({dist, mean, std, count}, seed) {
             : dist === 'counties' ? Data.michiganCounties
                 : dist === 'bacteria a' ? Data.bacteriaPrecisionA
                     : dist === 'bacteria b' ? Data.bacteriaPrecisionB
+                        : dist === 'bacteria c' ? Data.bacteriaPrecisionC
                 : d3.range(count).map(generator);
 
     // Normalize to fit xDomain
